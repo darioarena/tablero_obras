@@ -7,6 +7,12 @@ import { HardHat } from "lucide-react";
 export default async function ContratistasPage() {
   const contratistas = await getContratistas();
 
+  const extraColumnNames = Array.from(
+    new Set(
+      contratistas.flatMap((c) => (c.columnasAdicionales ? Object.keys(c.columnasAdicionales) : []))
+    )
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -15,7 +21,7 @@ export default async function ContratistasPage() {
           Registro de Empresas Contratistas
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Padrón de proveedores de obra pública sincronizado desde Google Sheets.
+          Padrón de proveedores de obra pública sincronizado desde Google Sheets. Mapeo dinámico de cabeceras.
         </p>
       </div>
 
@@ -32,6 +38,11 @@ export default async function ContratistasPage() {
                   <th className="py-3 px-4">Teléfono</th>
                   <th className="py-3 px-4">Obras Activas</th>
                   <th className="py-3 px-4">Estado Habilitación</th>
+                  {extraColumnNames.map((col) => (
+                    <th key={col} className="py-3 px-4 text-amber-700 bg-amber-50/50">
+                      {col} (Extra)
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -46,6 +57,11 @@ export default async function ContratistasPage() {
                     <td className="py-3.5 px-4">
                       <Badge variant="active">{c.estado}</Badge>
                     </td>
+                    {extraColumnNames.map((col) => (
+                      <td key={col} className="py-3.5 px-4 text-slate-700 font-medium bg-amber-50/20">
+                        {c.columnasAdicionales?.[col] || "—"}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>

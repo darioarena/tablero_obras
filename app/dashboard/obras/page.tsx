@@ -8,6 +8,13 @@ import { Layers } from "lucide-react";
 export default async function ObrasPage() {
   const obras = await getObras();
 
+  // Detectar automáticamente cualquier columna extra agregada en Google Sheets
+  const extraColumnNames = Array.from(
+    new Set(
+      obras.flatMap((o) => (o.columnasAdicionales ? Object.keys(o.columnasAdicionales) : []))
+    )
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -16,7 +23,7 @@ export default async function ObrasPage() {
           Listado Maestro de Obras
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Planilla sincronizada desde Google Sheets (Pestaña "Obras").
+          Planilla sincronizada desde Google Sheets (Pestaña &quot;Obras&quot;). Mapeo dinámico tolerante a cabeceras.
         </p>
       </div>
 
@@ -33,6 +40,11 @@ export default async function ObrasPage() {
                   <th className="py-3 px-4">Monto Contratado</th>
                   <th className="py-3 px-4">Avance Físico</th>
                   <th className="py-3 px-4">Estado</th>
+                  {extraColumnNames.map((col) => (
+                    <th key={col} className="py-3 px-4 text-blue-700 bg-blue-50/50">
+                      {col} (Extra)
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -57,6 +69,11 @@ export default async function ObrasPage() {
                     <td className="py-3.5 px-4">
                       <Badge variant="active">{obra.estado}</Badge>
                     </td>
+                    {extraColumnNames.map((col) => (
+                      <td key={col} className="py-3.5 px-4 text-slate-700 font-medium bg-blue-50/20">
+                        {obra.columnasAdicionales?.[col] || "—"}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>

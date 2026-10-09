@@ -4,40 +4,17 @@ import { Badge } from "@/components/ui/badge";
 import { Receipt, CheckCircle } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-const MOCK_CERTIFICACIONES = [
-  {
-    id: "CERT-2024-009",
-    obra: "Autopista Conexión Fluvial - Tramo II",
-    nro: 9,
-    periodo: "Agosto 2024",
-    monto: 84500000,
-    avanceMes: 8.5,
-    estado: "Aprobado",
-    fecha: "2024-09-05",
-  },
-  {
-    id: "CERT-2024-010",
-    obra: "Puente Distribuidor Acceso Norte",
-    nro: 6,
-    periodo: "Septiembre 2024",
-    monto: 42100000,
-    avanceMes: 6.2,
-    estado: "En Revisión",
-    fecha: "2024-10-02",
-  },
-  {
-    id: "CERT-2024-011",
-    obra: "Hospital Modular Regional",
-    nro: 4,
-    periodo: "Septiembre 2024",
-    monto: 98000000,
-    avanceMes: 7.1,
-    estado: "Observado",
-    fecha: "2024-10-04",
-  },
-];
+import { getCertificaciones } from "@/lib/google-sheets";
 
-export default function CertificacionesPage() {
+export default async function CertificacionesPage() {
+  const certificaciones = await getCertificaciones();
+
+  const extraColumnNames = Array.from(
+    new Set(
+      certificaciones.flatMap((c) => (c.columnasAdicionales ? Object.keys(c.columnasAdicionales) : []))
+    )
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -46,7 +23,7 @@ export default function CertificacionesPage() {
           Certificaciones de Obra y Liquidaciones
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Registro mensual de avance financiero y actas de medición de obra.
+          Registro mensual de avance financiero y actas de medición de obra vinculadas a Google Sheets.
         </p>
       </div>
 
@@ -63,17 +40,22 @@ export default function CertificacionesPage() {
                   <th className="py-3 px-4">Avance Mes</th>
                   <th className="py-3 px-4">Fecha Presentación</th>
                   <th className="py-3 px-4">Estado</th>
+                  {extraColumnNames.map((col) => (
+                    <th key={col} className="py-3 px-4 text-emerald-700 bg-emerald-50/50">
+                      {col} (Extra)
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {MOCK_CERTIFICACIONES.map((c) => (
+                {certificaciones.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3.5 px-4 font-mono font-semibold text-slate-900">{c.id}</td>
-                    <td className="py-3.5 px-4 font-medium text-slate-800">{c.obra}</td>
+                    <td className="py-3.5 px-4 font-medium text-slate-800">{c.obraNombre || c.obraId}</td>
                     <td className="py-3.5 px-4 text-slate-600">{c.periodo}</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900">{formatCurrency(c.monto)}</td>
+                    <td className="py-3.5 px-4 font-bold text-slate-900">{formatCurrency(c.montoCertificado)}</td>
                     <td className="py-3.5 px-4 font-semibold text-slate-700">+{c.avanceMes}%</td>
-                    <td className="py-3.5 px-4 text-slate-500">{formatDate(c.fecha)}</td>
+                    <td className="py-3.5 px-4 text-slate-500">{formatDate(c.fechaPresentacion)}</td>
                     <td className="py-3.5 px-4">
                       <Badge
                         variant={
@@ -87,6 +69,11 @@ export default function CertificacionesPage() {
                         {c.estado}
                       </Badge>
                     </td>
+                    {extraColumnNames.map((col) => (
+                      <td key={col} className="py-3.5 px-4 text-slate-700 font-medium bg-emerald-50/20">
+                        {c.columnasAdicionales?.[col] || "—"}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>

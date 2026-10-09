@@ -8,8 +8,9 @@ export default withAuth(
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
 
-    // Control de acceso por rol: Solo ADMIN puede acceder a la gestión de usuarios
-    if (pathname.startsWith("/dashboard/usuarios") && token?.role !== "ADMIN") {
+    // Control de acceso por rol: Solo ADMIN puede acceder a usuarios y diagnóstico de Sheets
+    const adminRestricted = ["/dashboard/usuarios", "/dashboard/sheets"];
+    if (adminRestricted.some((route) => pathname.startsWith(route)) && token?.role !== "ADMIN") {
       return NextResponse.redirect(new URL("/dashboard?access_denied=admin_only", req.url));
     }
 

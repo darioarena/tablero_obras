@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Shield,
   Layers,
+  FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +56,14 @@ export function Sidebar({ userRole = "ADMIN" }: SidebarProps) {
       href: "/dashboard/usuarios",
       icon: Users,
       badge: "ADMIN",
-      roles: ["ADMIN"], // Solo visible / accesible para administradores
+      roles: ["ADMIN"],
+    },
+    {
+      name: "Conexiones Sheets",
+      href: "/dashboard/sheets",
+      icon: FileSpreadsheet,
+      badge: "ADMIN",
+      roles: ["ADMIN"],
     },
   ];
 

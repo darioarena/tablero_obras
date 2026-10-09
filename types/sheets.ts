@@ -23,6 +23,7 @@ export interface ObraItem {
   fechaFinEstimada: string;
   estado: ObraEstado;
   inspectorACargo?: string;
+  columnasAdicionales?: Record<string, string>; // Nuevas columnas detectadas en el Sheet
 }
 
 export interface ContratistaItem {
@@ -34,6 +35,7 @@ export interface ContratistaItem {
   telefono: string;
   obrasActivasCount: number;
   estado: "Activo" | "Inhabilitado" | "En Observación";
+  columnasAdicionales?: Record<string, string>; // Nuevas columnas detectadas en el Sheet
 }
 
 export interface CertificacionItem {
@@ -47,6 +49,7 @@ export interface CertificacionItem {
   fechaPresentacion: string;
   fechaAprobacion?: string;
   estado: "Aprobado" | "En Revisión" | "Observado" | "Pagado";
+  columnasAdicionales?: Record<string, string>; // Nuevas columnas detectadas en el Sheet
 }
 
 export type AlertaSeveridad = "Alta" | "Media" | "Baja";
@@ -79,4 +82,51 @@ export interface DashboardMetrics {
   alertasAltaCount: number;
   contratistasActivosCount: number;
   avancePromedioFisico: number;
+}
+
+export interface DetectedHeader {
+  name: string;
+  index: number;
+  normalized: string;
+  isMapped: boolean;
+  mappedField?: string;
+  sampleValue?: string;
+}
+
+export interface ExpectedFieldAudit {
+  field: string;
+  label: string;
+  required: boolean;
+  found: boolean;
+  matchedHeader?: string;
+  sampleValue?: string;
+}
+
+export interface SheetAuditInfo {
+  sheetKey: "obras" | "contratistas" | "certificaciones" | "alertas";
+  title: string;
+  tabRange: string;
+  spreadsheetId: string;
+  spreadsheetUrl: string;
+  status: "CONNECTED" | "EMPTY" | "ERROR" | "FALLBACK_MOCK";
+  errorMessage?: string;
+  totalRows: number;
+  detectedHeaders: DetectedHeader[];
+  unmappedHeaders: DetectedHeader[];
+  mappedFieldsCount: number;
+  expectedFields: ExpectedFieldAudit[];
+  sampleRow?: Record<string, string>;
+}
+
+export interface SheetsDiagnosticData {
+  connectionStatus: {
+    configured: boolean;
+    hasServiceAccountEmail: boolean;
+    serviceAccountEmail?: string;
+    hasPrivateKey: boolean;
+    mode: "LIVE_GOOGLE_SHEETS" | "FALLBACK_MOCK";
+    revalidateSeconds: number;
+  };
+  sheets: SheetAuditInfo[];
+  lastChecked: string;
 }
