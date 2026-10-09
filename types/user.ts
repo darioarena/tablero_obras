@@ -1,4 +1,4 @@
-import { UserRole } from "./auth";
+export type UserRole = "ADMIN" | "OPERADOR";
 
 export type UserStatus = "active" | "inactive";
 

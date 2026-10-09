@@ -1,4 +1,6 @@
-export type UserRole = "ADMIN" | "OPERADOR";
+import { UserRole } from "./user";
+
+export type { UserRole };
 
 export interface SessionUser {
   id: string;
