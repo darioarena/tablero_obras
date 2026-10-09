@@ -21,7 +21,15 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { UserAccount, UserRole, UserStatus } from "@/types/user";
 
-// Datos iniciales de usuarios
+import {
+  fetchUsersAction,
+  createUserAction,
+  updateUserAction,
+  resetPasswordAction,
+} from "@/app/actions/users";
+import { useEffect } from "react";
+
+// Datos iniciales de respaldo
 const INITIAL_USERS: UserAccount[] = [
   {
     id: "usr-001",
@@ -62,6 +70,7 @@ export default function UsuariosPage() {
   const [users, setUsers] = useState<UserAccount[]>(INITIAL_USERS);
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState<string>("ALL");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Estados de Modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -69,6 +78,15 @@ export default function UsuariosPage() {
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [notification, setNotification] = useState<string | null>(null);
+
+  // Cargar usuarios desde el backend
+  useEffect(() => {
+    fetchUsersAction().then((res) => {
+      if (res.success && res.users && res.users.length > 0) {
+        setUsers(res.users);
+      }
+    });
+  }, []);
 
   // Formulario de Alta
   const [formData, setFormData] = useState({
@@ -89,57 +107,67 @@ export default function UsuariosPage() {
     return matchesSearch && matchesRole;
   });
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email) return;
 
-    const newUser: UserAccount = {
-      id: `usr-${String(users.length + 1).padStart(3, "0")}`,
+    setIsSubmitting(true);
+    const res = await createUserAction({
       name: formData.name,
       email: formData.email,
       role: formData.role,
-      status: "active",
       department: formData.department || "Infraestructura",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      lastLogin: "-",
-    };
+      password: formData.password || "ClaveTemporal2024!",
+    });
 
-    setUsers([newUser, ...users]);
-    setIsCreateModalOpen(false);
-    setFormData({ name: "", email: "", role: "OPERADOR", department: "", password: "" });
-    setNotification(`Usuario "${newUser.name}" creado con éxito.`);
-    setTimeout(() => setNotification(null), 4000);
+    setIsSubmitting(false);
+
+    if (res.success && res.user) {
+      setUsers([res.user, ...users]);
+      setIsCreateModalOpen(false);
+      setFormData({ name: "", email: "", role: "OPERADOR", department: "", password: "" });
+      setNotification(`Usuario "${res.user.name}" creado con éxito.`);
+      setTimeout(() => setNotification(null), 4000);
+    } else {
+      setNotification(res.error || "Error al crear el usuario.");
+      setTimeout(() => setNotification(null), 5000);
+    }
   };
 
-  const handleToggleStatus = (id: string) => {
-    setUsers(
-      users.map((u) => {
-        if (u.id === id) {
-          const newStatus: UserStatus = u.status === "active" ? "inactive" : "active";
-          return { ...u, status: newStatus, updatedAt: new Date().toISOString() };
-        }
-        return u;
-      })
-    );
+  const handleToggleStatus = async (id: string) => {
+    const user = users.find((u) => u.id === id);
+    if (!user) return;
+    const newStatus: UserStatus = user.status === "active" ? "inactive" : "active";
+
+    const res = await updateUserAction(id, { status: newStatus });
+    if (res.success) {
+      setUsers(
+        users.map((u) =>
+          u.id === id ? { ...u, status: newStatus, updatedAt: new Date().toISOString() } : u
+        )
+      );
+    }
   };
 
-  const handleRoleChange = (id: string, newRole: UserRole) => {
-    setUsers(
-      users.map((u) => {
-        if (u.id === id) {
-          return { ...u, role: newRole, updatedAt: new Date().toISOString() };
-        }
-        return u;
-      })
-    );
+  const handleRoleChange = async (id: string, newRole: UserRole) => {
+    const res = await updateUserAction(id, { role: newRole });
+    if (res.success) {
+      setUsers(
+        users.map((u) => (u.id === id ? { ...u, role: newRole, updatedAt: new Date().toISOString() } : u))
+      );
+    }
   };
 
-  const handleConfirmPasswordReset = () => {
+  const handleConfirmPasswordReset = async () => {
     if (!selectedUser || !newPassword) return;
-    setNotification(
-      `Contraseña del usuario ${selectedUser.name} restablecida exitosamente.`
-    );
+    const res = await resetPasswordAction(selectedUser.id, newPassword);
+    if (res.success) {
+      setNotification(
+        `Contraseña del usuario ${selectedUser.name} restablecida exitosamente.`
+      );
+    } else {
+      setNotification(res.error || "Error al restablecer la contraseña.");
+    }
     setIsResetModalOpen(false);
     setSelectedUser(null);
     setNewPassword("");
@@ -384,8 +412,8 @@ export default function UsuariosPage() {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" size="sm">
-                  Crear Usuario
+                <Button type="submit" size="sm" isLoading={isSubmitting} disabled={isSubmitting}>
+                  {isSubmitting ? "Creando..." : "Crear Usuario"}
                 </Button>
               </div>
             </form>
