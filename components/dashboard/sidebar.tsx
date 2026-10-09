@@ -55,7 +55,7 @@ export function Sidebar({ userRole = "ADMIN" }: SidebarProps) {
       href: "/dashboard/usuarios",
       icon: Users,
       badge: "ADMIN",
-      roles: ["ADMIN"],
+      roles: ["ADMIN"], // Solo visible / accesible para administradores
     },
   ];
 
@@ -68,6 +68,7 @@ export function Sidebar({ userRole = "ADMIN" }: SidebarProps) {
         collapsed ? "w-20" : "w-64"
       )}
     >
+      {/* Encabezado del Sidebar */}
       <div className="flex h-16 items-center justify-between px-4 border-b border-slate-100">
         <Link href="/dashboard" className="flex items-center gap-3 overflow-hidden">
           <div className="h-9 w-9 rounded-lg bg-slate-900 flex items-center justify-center text-white shrink-0 shadow-sm">
@@ -84,6 +85,7 @@ export function Sidebar({ userRole = "ADMIN" }: SidebarProps) {
         </Link>
       </div>
 
+      {/* Navegación Principal */}
       <nav className="flex-1 space-y-1.5 p-3 overflow-y-auto">
         <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 py-1">
           {!collapsed ? "Módulos del Sistema" : "•••"}
@@ -135,6 +137,7 @@ export function Sidebar({ userRole = "ADMIN" }: SidebarProps) {
         })}
       </nav>
 
+      {/* Indicador de Rol en pie de Sidebar */}
       {!collapsed && (
         <div className="p-3 m-3 rounded-lg bg-slate-50 border border-slate-200/80">
           <div className="flex items-center gap-2">
@@ -151,6 +154,7 @@ export function Sidebar({ userRole = "ADMIN" }: SidebarProps) {
         </div>
       )}
 
+      {/* Botón de Colapso / Expansión */}
       <div className="p-3 border-t border-slate-100 flex items-center justify-end">
         <button
           onClick={() => setCollapsed(!collapsed)}

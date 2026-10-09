@@ -28,6 +28,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Validaciones en tiempo real
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isPasswordValid = password.length >= 6;
 
@@ -48,14 +49,23 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      const sanitizedEmail = email.trim().toLowerCase();
+      const sanitizedPassword = password.trim();
+
       const res = await signIn("credentials", {
         redirect: false,
-        email,
-        password,
+        email: sanitizedEmail,
+        password: sanitizedPassword,
       });
 
       if (!res || res.error) {
-        setErrorMessage("Credenciales incorrectas o usuario inhabilitado. Verifique sus datos.");
+        if (res?.error === "Configuration") {
+          setErrorMessage(
+            "Error de configuración del servidor de autenticación (NEXTAUTH_SECRET). Verifique las variables de entorno en Vercel."
+          );
+        } else {
+          setErrorMessage("Credenciales incorrectas o usuario inhabilitado. Verifique sus datos.");
+        }
         setIsLoading(false);
         return;
       }
@@ -68,6 +78,7 @@ export default function LoginPage() {
     }
   };
 
+  // Ayudante de credenciales para demostración / testing inicial
   const setDemoCredentials = (role: "ADMIN" | "OPERADOR") => {
     if (role === "ADMIN") {
       setEmail("admin@portaldeobras.gob.ar");
@@ -81,7 +92,11 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen w-full flex bg-background font-sans antialiased">
+      {/* ========================================================================= */}
+      {/* PANEL LATERAL: FORMULARIO DE ACCESO (40% - 45%) */}
+      {/* ========================================================================= */}
       <div className="w-full lg:w-[45%] xl:w-[40%] flex flex-col justify-between p-8 sm:p-12 lg:p-16 bg-white border-r border-slate-200/80 shadow-sm z-10">
+        {/* Cabecera / Identidad */}
         <div>
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-md shadow-slate-900/10">
@@ -107,6 +122,7 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {/* Banner de Error */}
           {errorMessage && (
             <div
               role="alert"
@@ -117,7 +133,9 @@ export default function LoginPage() {
             </div>
           )}
 
+          {/* Formulario */}
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            {/* Campo Email */}
             <div className="space-y-1.5">
               <label
                 htmlFor="email"
@@ -149,6 +167,7 @@ export default function LoginPage() {
               )}
             </div>
 
+            {/* Campo Contraseña */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label
@@ -194,6 +213,7 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Botón de Ingreso */}
             <Button
               type="submit"
               size="lg"
@@ -206,6 +226,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          {/* Acceso Rápido Demo (Testing Inicial de Roles) */}
           <div className="mt-8 pt-6 border-t border-slate-100">
             <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
               Accesos Demo (Fase 1)
@@ -229,6 +250,7 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Footer Institucional del Formulario */}
         <div className="mt-8 pt-6 border-t border-slate-100 text-[11px] text-slate-400 leading-relaxed">
           <p>
             Acceso restringido a personal técnico y directivo acreditado. Todas las sesiones son
@@ -237,7 +259,11 @@ export default function LoginPage() {
         </div>
       </div>
 
+      {/* ========================================================================= */}
+      {/* PANEL HERO / VISUAL (55% - 60%) */}
+      {/* ========================================================================= */}
       <div className="hidden lg:flex flex-1 relative bg-gradient-to-br from-[#0b1d30] via-[#102a43] to-[#243b53] text-white flex-col justify-between p-12 xl:p-16 overflow-hidden">
+        {/* Grilla isométrica arquitectónica sutil de fondo (Blueprint SVG) */}
         <div className="absolute inset-0 opacity-10 pointer-events-none">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -250,8 +276,10 @@ export default function LoginPage() {
           </svg>
         </div>
 
+        {/* Círculo de luz ambiental */}
         <div className="absolute top-1/4 right-10 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
+        {/* Header Superior del Hero */}
         <div className="relative z-10 flex items-center justify-between">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium text-blue-200">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -260,6 +288,7 @@ export default function LoginPage() {
           <span className="text-xs text-slate-400 font-mono">v1.0.0 Enterprise</span>
         </div>
 
+        {/* Contenido Central / Claim del Proyecto */}
         <div className="relative z-10 max-w-xl my-auto py-8">
           <span className="text-xs font-bold uppercase tracking-widest text-blue-300">
             Monitoreo y Fiscalización
@@ -273,6 +302,7 @@ export default function LoginPage() {
             detección temprana de desvíos presupuestarios.
           </p>
 
+          {/* Cards de características clave */}
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3.5 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10">
               <HardHat className="w-5 h-5 text-amber-400 mb-2" />
@@ -292,6 +322,7 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Footer Hero */}
         <div className="relative z-10 flex items-center justify-between text-xs text-slate-400 pt-6 border-t border-white/10">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-blue-400" />

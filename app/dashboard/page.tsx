@@ -23,6 +23,7 @@ import {
 } from "@/lib/google-sheets";
 
 export default async function DashboardPage() {
+  // Obtenemos los datos con Next.js Data Cache
   const metrics = await getDashboardMetrics();
   const alertas = await getAlertas();
   const avanceMensual = await getAvanceMensual();
@@ -30,6 +31,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* ========================================================================= */}
+      {/* CABECERA DEL DASHBOARD */}
+      {/* ========================================================================= */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -54,7 +58,11 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* ========================================================================= */}
+      {/* KPI CARDS (4 MÉTRICAS PRINCIPALES) */}
+      {/* ========================================================================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI 1: Obras en Ejecución */}
         <Card className="hover:border-slate-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -79,6 +87,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* KPI 2: Monto Certificado Acumulado */}
         <Card className="hover:border-slate-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -103,6 +112,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* KPI 3: Alertas Activas */}
         <Card className="hover:border-slate-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -127,6 +137,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* KPI 4: Contratistas Activos */}
         <Card className="hover:border-slate-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -152,7 +163,11 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
+      {/* ========================================================================= */}
+      {/* GRÁFICOS Y ANÁLISIS PRELIMINAR */}
+      {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Curva de Avance Mensual (2/3 de pantalla) */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -175,6 +190,7 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="pt-4">
+            {/* Visualización de Barras de Avance */}
             <div className="space-y-4">
               {avanceMensual.map((item) => {
                 const desvio = item.real - item.programado;
@@ -197,11 +213,14 @@ export default async function DashboardPage() {
                       </div>
                     </div>
 
+                    {/* Barras superpuestas estilizadas */}
                     <div className="relative h-4 w-full bg-slate-100 rounded-full overflow-hidden">
+                      {/* Barra Programada */}
                       <div
                         className="absolute top-0 bottom-0 left-0 bg-blue-200/80 transition-all duration-500"
                         style={{ width: `${item.programado}%` }}
                       />
+                      {/* Barra Real */}
                       <div
                         className={`absolute top-0 bottom-0 left-0 transition-all duration-500 ${
                           isNegative ? "bg-slate-900" : "bg-emerald-600"
@@ -225,6 +244,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Resumen de Tipologías y Estado de Obras (1/3 de pantalla) */}
         <Card>
           <CardHeader>
             <CardTitle>Composición de Cartera</CardTitle>
@@ -298,6 +318,9 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
+      {/* ========================================================================= */}
+      {/* TABLA DE ALERTAS RECIENTES (CON BADGES DE SEVERIDAD) */}
+      {/* ========================================================================= */}
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -343,12 +366,14 @@ export default async function DashboardPage() {
                       key={alerta.id}
                       className="hover:bg-slate-50/80 transition-colors group"
                     >
+                      {/* Badge de Severidad */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <Badge variant={severityVariant}>
                           {alerta.severidad.toUpperCase()}
                         </Badge>
                       </td>
 
+                      {/* Obra */}
                       <td className="py-3.5 px-4">
                         <div className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
                           {alerta.obraNombre}
@@ -358,18 +383,22 @@ export default async function DashboardPage() {
                         </div>
                       </td>
 
+                      {/* Tipo */}
                       <td className="py-3.5 px-4 whitespace-nowrap text-slate-700 font-medium">
                         {alerta.tipo}
                       </td>
 
+                      {/* Descripción */}
                       <td className="py-3.5 px-4 text-slate-600 max-w-sm leading-relaxed">
                         {alerta.descripcion}
                       </td>
 
+                      {/* Fecha */}
                       <td className="py-3.5 px-4 whitespace-nowrap text-slate-500">
                         {formatDate(alerta.fechaDeteccion)}
                       </td>
 
+                      {/* Acción Sugerida */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-slate-800 font-medium line-clamp-1">

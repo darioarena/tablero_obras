@@ -17,8 +17,8 @@ export interface ObraItem {
   presupuestoOficial: number;
   montoContratado: number;
   montoCertificadoAcumulado: number;
-  avanceFisico: number;
-  avanceFinanciero: number;
+  avanceFisico: number; // Porcentaje 0 a 100
+  avanceFinanciero: number; // Porcentaje 0 a 100
   fechaInicio: string;
   fechaFinEstimada: string;
   estado: ObraEstado;
@@ -41,9 +41,9 @@ export interface CertificacionItem {
   numeroCertificado: number;
   obraId: string;
   obraNombre?: string;
-  periodo: string;
+  periodo: string; // YYYY-MM
   montoCertificado: number;
-  avanceMes: number;
+  avanceMes: number; // %
   fechaPresentacion: string;
   fechaAprobacion?: string;
   estado: "Aprobado" | "En Revisión" | "Observado" | "Pagado";
@@ -72,7 +72,7 @@ export interface AvanceMensualItem {
 
 export interface DashboardMetrics {
   totalObrasEjecucion: number;
-  totalObrasVariacionMes: number;
+  totalObrasVariacionMes: number; // ej: +2 vs mes anterior
   montoCertificadoAcumulado: number;
   montoVariacionPorcentual: number;
   alertasActivasCount: number;

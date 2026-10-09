@@ -10,9 +10,11 @@ export function Badge({ className, variant = "default", ...props }: BadgeProps) 
     default: "bg-slate-900 text-white",
     secondary: "bg-slate-100 text-slate-800 border-slate-200",
     outline: "text-slate-700 border-slate-300 bg-white",
+    // Badges de severidad de alertas de obra
     alta: "bg-red-50 text-red-700 border-red-200/80 font-semibold",
     media: "bg-amber-50 text-amber-800 border-amber-200/80 font-medium",
     baja: "bg-emerald-50 text-emerald-700 border-emerald-200/80 font-medium",
+    // Estados de usuario u obra
     active: "bg-emerald-50 text-emerald-700 border-emerald-200/80",
     inactive: "bg-slate-100 text-slate-500 border-slate-200",
   };

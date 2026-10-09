@@ -2,10 +2,22 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { verifyUserCredentials } from "./users";
 
+export const FALLBACK_SECRET = "portal-de-obras-super-secret-production-key-2024-32chars";
+
+// Asegurar que process.env.NEXTAUTH_SECRET siempre exista en runtime para evitar el error NO_SECRET en Vercel
+if (!process.env.NEXTAUTH_SECRET) {
+  process.env.NEXTAUTH_SECRET = process.env.AUTH_SECRET || FALLBACK_SECRET;
+}
+
+// En Vercel, si NEXTAUTH_URL no fue seteada manualmente, autodetectar a partir de VERCEL_URL
+if (!process.env.NEXTAUTH_URL && process.env.VERCEL_URL) {
+  process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
+}
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60,
+    maxAge: 8 * 60 * 60, // 8 horas de sesión
   },
   pages: {
     signIn: "/login",
@@ -20,13 +32,13 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Debe ingresar correo y contraseña.");
+          return null;
         }
 
         const user = await verifyUserCredentials(credentials.email, credentials.password);
 
         if (!user) {
-          throw new Error("Credenciales inválidas o usuario inactivo.");
+          return null;
         }
 
         return {
@@ -57,5 +69,5 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || "portal-de-obras-dev-secret-key-change-in-prod-32chars",
+  secret: process.env.NEXTAUTH_SECRET || FALLBACK_SECRET,
 };

@@ -30,6 +30,7 @@ export function Navbar({
 
   const handleManualSync = async () => {
     setIsSyncing(true);
+    // Simula / llama a revalidación de cache
     setTimeout(() => {
       setIsSyncing(false);
       window.location.reload();
@@ -42,6 +43,7 @@ export function Navbar({
 
   return (
     <header className="sticky top-0 z-10 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur px-6 shadow-subtle">
+      {/* Buscador / Filtro Rápido */}
       <div className="flex items-center gap-3 w-1/3">
         <div className="relative w-full max-w-xs">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
@@ -52,6 +54,7 @@ export function Navbar({
           />
         </div>
 
+        {/* Selector de Período Global */}
         <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-700">
           <Calendar className="w-3.5 h-3.5 text-slate-500" />
           <select
@@ -67,7 +70,9 @@ export function Navbar({
         </div>
       </div>
 
+      {/* Acciones del Navbar y Perfil */}
       <div className="flex items-center gap-3">
+        {/* Sincronizar Google Sheets */}
         <Button
           variant="outline"
           size="sm"
@@ -80,6 +85,7 @@ export function Navbar({
           Sincronizar Sheets
         </Button>
 
+        {/* Notificaciones de Alertas */}
         <button
           className="relative p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
           title="Alertas activas del sistema"
@@ -93,6 +99,7 @@ export function Navbar({
 
         <div className="h-6 w-px bg-slate-200 mx-1" />
 
+        {/* Perfil del Usuario Activo */}
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex flex-col text-right">
             <span className="text-xs font-semibold text-slate-900 leading-tight">
@@ -119,6 +126,7 @@ export function Navbar({
               .join("")}
           </div>
 
+          {/* Botón Logout */}
           <button
             onClick={handleLogout}
             className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors ml-1"

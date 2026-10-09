@@ -10,9 +10,17 @@ import {
   DashboardMetrics,
 } from "@/types/sheets";
 
-export const SHEETS_CACHE_TAG = "google-sheets-data";
-const DEFAULT_REVALIDATE_SECONDS = 300;
+// ============================================================================
+// CONFIGURACIÓN Y CONSTANTES
+// ============================================================================
 
+export const SHEETS_CACHE_TAG = "google-sheets-data";
+const DEFAULT_REVALIDATE_SECONDS = 300; // 5 minutos por defecto
+
+/**
+ * Obtiene la configuración de IDs de planillas desde las variables de entorno.
+ * Permite tanto el objeto JSON `SHEETS_CONFIG` como variables individuales.
+ */
 export function getSheetsConfig(): SheetConfig {
   const jsonConfig = process.env.SHEETS_CONFIG;
   if (jsonConfig) {
@@ -37,11 +45,18 @@ export function getSheetsConfig(): SheetConfig {
   };
 }
 
+/**
+ * Valida y formatea la Private Key de la Service Account
+ */
 function cleanPrivateKey(key?: string): string | undefined {
   if (!key) return undefined;
+  // Reemplaza posibles secuencias literales de escape \n por saltos de línea reales
   return key.replace(/\\n/g, "\n");
 }
 
+/**
+ * Inicializa el cliente autenticado de Google Sheets API v4
+ */
 function getGoogleSheetsClient() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const rawKey = process.env.GOOGLE_PRIVATE_KEY;
@@ -59,6 +74,12 @@ function getGoogleSheetsClient() {
 
   return google.sheets({ version: "v4", auth });
 }
+
+// ============================================================================
+// DATOS MOCK DE CONTINGENCIA (FALLBACK CORP)
+// ============================================================================
+// Permite que la app funcione fluidamente en desarrollo o demostraciones iniciales
+// antes de completar las credenciales del Service Account en Google Cloud.
 
 const MOCK_OBRAS: ObraItem[] = [
   {
@@ -91,7 +112,7 @@ const MOCK_OBRAS: ObraItem[] = [
     montoContratado: 445000000,
     montoCertificadoAcumulado: 213600000,
     avanceFisico: 48.0,
-    avanceFinanciero: 54.2,
+    avanceFinanciero: 54.2, // Desvío financiero detectado
     fechaInicio: "2024-03-01",
     fechaFinEstimada: "2025-04-15",
     estado: "En Ejecución",
@@ -254,6 +275,13 @@ const MOCK_AVANCE_MENSUAL: AvanceMensualItem[] = [
   { mes: "Oct", programado: 84, real: 77 },
 ];
 
+// ============================================================================
+// FUNCIONES DE CONSULTA CON CACHE EN SERVIDOR (NEXT.JS DATA CACHE)
+// ============================================================================
+
+/**
+ * Consulta de bajo nivel a Google Sheets API v4
+ */
 async function fetchSheetDataRaw(spreadsheetId: string, range: string): Promise<string[][] | null> {
   const sheets = getGoogleSheetsClient();
   if (!sheets || !spreadsheetId) return null;
@@ -271,8 +299,12 @@ async function fetchSheetDataRaw(spreadsheetId: string, range: string): Promise<
   }
 }
 
+/**
+ * Parseo de filas de Obras desde Google Sheets
+ */
 function parseObrasRows(rows: string[][]): ObraItem[] {
   if (!rows || rows.length <= 1) return MOCK_OBRAS;
+  // Asume que la fila 0 son cabeceras
   const dataRows = rows.slice(1);
 
   return dataRows.map((row, index) => {
@@ -297,6 +329,9 @@ function parseObrasRows(rows: string[][]): ObraItem[] {
   });
 }
 
+/**
+ * Parseo de filas de Contratistas desde Google Sheets
+ */
 function parseContratistasRows(rows: string[][]): ContratistaItem[] {
   if (!rows || rows.length <= 1) return MOCK_CONTRATISTAS;
   const dataRows = rows.slice(1);
@@ -315,10 +350,17 @@ function parseContratistasRows(rows: string[][]): ContratistaItem[] {
   });
 }
 
+// ============================================================================
+// SERVICIOS PÚBLICOS CACHEADOS
+// ============================================================================
+
 const revalidateTime = Number(
   process.env.SHEETS_CACHE_REVALIDATE_SECONDS || DEFAULT_REVALIDATE_SECONDS
 );
 
+/**
+ * Obtiene el listado completo de obras con Next.js Data Cache
+ */
 export const getObras = unstable_cache(
   async (): Promise<ObraItem[]> => {
     const config = getSheetsConfig();
@@ -340,6 +382,9 @@ export const getObras = unstable_cache(
   }
 );
 
+/**
+ * Obtiene el listado de contratistas con Next.js Data Cache
+ */
 export const getContratistas = unstable_cache(
   async (): Promise<ContratistaItem[]> => {
     const config = getSheetsConfig();
@@ -361,8 +406,12 @@ export const getContratistas = unstable_cache(
   }
 );
 
+/**
+ * Obtiene las alertas activas de obras
+ */
 export const getAlertas = unstable_cache(
   async (): Promise<AlertaItem[]> => {
+    // Si se desea consultar una pestaña de Alertas en Google Sheets:
     const config = getSheetsConfig();
     if (config.obrasSpreadsheetId) {
       const rows = await fetchSheetDataRaw(config.obrasSpreadsheetId, "Alertas!A:H");
@@ -390,6 +439,9 @@ export const getAlertas = unstable_cache(
   }
 );
 
+/**
+ * Obtiene la curva de avance mensual agregado (Programado vs Real)
+ */
 export const getAvanceMensual = unstable_cache(
   async (): Promise<AvanceMensualItem[]> => {
     return MOCK_AVANCE_MENSUAL;
@@ -401,6 +453,9 @@ export const getAvanceMensual = unstable_cache(
   }
 );
 
+/**
+ * Calcula los KPIs y métricas consolidadas del Dashboard
+ */
 export const getDashboardMetrics = unstable_cache(
   async (): Promise<DashboardMetrics> => {
     const obras = await getObras();
@@ -422,9 +477,9 @@ export const getDashboardMetrics = unstable_cache(
 
     return {
       totalObrasEjecucion: obrasEnEjecucion.length,
-      totalObrasVariacionMes: 2,
+      totalObrasVariacionMes: 2, // 2 nuevas obras incorporadas en el mes
       montoCertificadoAcumulado: montoCertificadoTotal,
-      montoVariacionPorcentual: 14.8,
+      montoVariacionPorcentual: 14.8, // +14.8% en el último mes
       alertasActivasCount: alertas.length,
       alertasAltaCount: alertasAlta,
       contratistasActivosCount: contratistasActivos,

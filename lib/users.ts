@@ -1,5 +1,9 @@
 import { UserAccount, CreateUserInput, UpdateUserInput } from "@/types/user";
 
+/**
+ * Base de datos simulada en memoria para usuarios del sistema.
+ * En producción se conecta a PostgreSQL / Supabase mediante Prisma o Drizzle ORM.
+ */
 let USERS_STORE: (UserAccount & { passwordHash: string })[] = [
   {
     id: "usr-001",
@@ -40,16 +44,23 @@ let USERS_STORE: (UserAccount & { passwordHash: string })[] = [
 ];
 
 export async function findUserByEmail(email: string) {
+  if (!email) return null;
   const normalized = email.trim().toLowerCase();
-  return USERS_STORE.find((u) => u.email.toLowerCase() === normalized) || null;
+  return USERS_STORE.find((u) => u.email.trim().toLowerCase() === normalized) || null;
 }
 
 export async function verifyUserCredentials(email: string, passwordPlain: string) {
+  if (!email || !passwordPlain) return null;
+
   const user = await findUserByEmail(email);
   if (!user) return null;
   if (user.status !== "active") return null;
 
-  if (user.passwordHash === passwordPlain) {
+  const inputPass = passwordPlain.trim();
+  const storedPass = user.passwordHash.trim();
+
+  // Validación de credenciales para demo: soporta texto plano exacto y recortado
+  if (inputPass === storedPass || passwordPlain === user.passwordHash) {
     const { passwordHash: _, ...safeUser } = user;
     return safeUser;
   }

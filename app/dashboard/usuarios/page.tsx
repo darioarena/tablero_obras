@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { UserAccount, UserRole, UserStatus } from "@/types/user";
 
+// Datos iniciales de usuarios
 const INITIAL_USERS: UserAccount[] = [
   {
     id: "usr-001",
@@ -62,12 +63,14 @@ export default function UsuariosPage() {
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState<string>("ALL");
 
+  // Estados de Modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [notification, setNotification] = useState<string | null>(null);
 
+  // Formulario de Alta
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -145,6 +148,7 @@ export default function UsuariosPage() {
 
   return (
     <div className="space-y-6">
+      {/* Notificación Flotante */}
       {notification && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs flex items-center gap-2 animate-in fade-in">
           <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -152,6 +156,7 @@ export default function UsuariosPage() {
         </div>
       )}
 
+      {/* Cabecera del Módulo */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -176,9 +181,11 @@ export default function UsuariosPage() {
         </Button>
       </div>
 
+      {/* Tabla y Filtros */}
       <Card>
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {/* Buscador */}
             <div className="relative w-full sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <Input
@@ -189,6 +196,7 @@ export default function UsuariosPage() {
               />
             </div>
 
+            {/* Filtro por Rol */}
             <div className="flex items-center gap-2 text-xs">
               <span className="text-slate-500">Filtrar Rol:</span>
               <select
@@ -220,15 +228,18 @@ export default function UsuariosPage() {
               <tbody className="divide-y divide-slate-100">
                 {filteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                    {/* Usuario */}
                     <td className="py-3.5 px-4">
                       <div className="font-semibold text-slate-900">{user.name}</div>
                       <div className="text-[11px] text-slate-500">{user.email}</div>
                     </td>
 
+                    {/* Área */}
                     <td className="py-3.5 px-4 text-slate-600">
                       {user.department || "No asignado"}
                     </td>
 
+                    {/* Rol con selector rápido */}
                     <td className="py-3.5 px-4">
                       <select
                         value={user.role}
@@ -244,6 +255,7 @@ export default function UsuariosPage() {
                       </select>
                     </td>
 
+                    {/* Estado con Toggle */}
                     <td className="py-3.5 px-4">
                       <button
                         onClick={() => handleToggleStatus(user.id)}
@@ -261,10 +273,12 @@ export default function UsuariosPage() {
                       </button>
                     </td>
 
+                    {/* Fecha de Creación */}
                     <td className="py-3.5 px-4 text-slate-500">
                       {formatDate(user.createdAt)}
                     </td>
 
+                    {/* Acciones */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <Button
@@ -290,6 +304,9 @@ export default function UsuariosPage() {
         </CardContent>
       </Card>
 
+      {/* ========================================================================= */}
+      {/* MODAL: ALTA DE NUEVO USUARIO */}
+      {/* ========================================================================= */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-dropdown max-w-md w-full p-6 animate-in fade-in zoom-in-95">
@@ -376,6 +393,9 @@ export default function UsuariosPage() {
         </div>
       )}
 
+      {/* ========================================================================= */}
+      {/* MODAL: RESETEO DE CONTRASEÑA */}
+      {/* ========================================================================= */}
       {isResetModalOpen && selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-dropdown max-w-sm w-full p-6 animate-in fade-in zoom-in-95">
