@@ -1,8 +1,7 @@
 import React from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { Sidebar } from "@/components/dashboard/sidebar";
-import { Navbar } from "@/components/dashboard/navbar";
+import { DashboardLayoutClient } from "@/components/dashboard/dashboard-layout-client";
 
 export default async function DashboardLayout({
   children,
@@ -16,18 +15,12 @@ export default async function DashboardLayout({
   const userRole = session?.user?.role || "ADMIN";
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC]">
-      {/* Sidebar Retráctil */}
-      <Sidebar userRole={userRole} />
-
-      {/* Contenido Principal */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <Navbar userName={userName} userEmail={userEmail} userRole={userRole} />
-
-        <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto">
-          {children}
-        </main>
-      </div>
-    </div>
+    <DashboardLayoutClient
+      userName={userName}
+      userEmail={userEmail}
+      userRole={userRole}
+    >
+      {children}
+    </DashboardLayoutClient>
   );
 }
