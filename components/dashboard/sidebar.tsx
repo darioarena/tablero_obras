@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
+  ShieldCheck,
   Layers,
   FileSpreadsheet,
 } from "lucide-react";
@@ -66,6 +67,12 @@ export function Sidebar({
       name: "Certificaciones",
       href: "/dashboard/certificaciones",
       icon: Receipt,
+      roles: ["ADMIN", "OPERADOR"],
+    },
+    {
+      name: "Garantías",
+      href: "/dashboard/garantias",
+      icon: ShieldCheck,
       roles: ["ADMIN", "OPERADOR"],
     },
     {

@@ -8,6 +8,7 @@ import {
   Layers,
   HardHat,
   Receipt,
+  ShieldCheck,
   FileSpreadsheet,
   Users,
 } from "lucide-react";
@@ -43,6 +44,12 @@ export function MobileNavBar({ userRole = "ADMIN" }: MobileNavProps) {
       name: "Certificaciones",
       href: "/dashboard/certificaciones",
       icon: Receipt,
+      roles: ["ADMIN", "OPERADOR"],
+    },
+    {
+      name: "Garantías",
+      href: "/dashboard/garantias",
+      icon: ShieldCheck,
       roles: ["ADMIN", "OPERADOR"],
     },
     ...(userRole === "ADMIN"

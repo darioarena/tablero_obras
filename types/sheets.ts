@@ -2,6 +2,7 @@ export interface SheetConfig {
   obrasSpreadsheetId: string;
   contratistasSpreadsheetId: string;
   certificacionesSpreadsheetId: string;
+  garantiasSpreadsheetId?: string;
 }
 
 export type ObraEstado = "En Ejecución" | "Licitación" | "Finalizada" | "Paralizada" | "En Garantía";
@@ -52,6 +53,33 @@ export interface CertificacionItem {
   columnasAdicionales?: Record<string, string>; // Nuevas columnas detectadas en el Sheet
 }
 
+export type GarantiaTipo =
+  | "Fiel Cumplimiento"
+  | "Fondo de Reparo"
+  | "Anticipo Financiero"
+  | "Oferta"
+  | "Sustitución de Fondo"
+  | string;
+
+export type GarantiaEstado = "Vigente" | "Por Vencer" | "Vencida" | "Liberada" | "Ejecutada";
+
+export interface GarantiaItem {
+  id: string;
+  obraId: string;
+  obraNombre?: string;
+  contratistaId?: string;
+  contratistaNombre?: string;
+  tipo: GarantiaTipo;
+  entidadEmisora: string;
+  numeroPoliza: string;
+  montoAsegurado: number;
+  fechaEmision?: string;
+  fechaVencimiento: string;
+  estado: GarantiaEstado;
+  observaciones?: string;
+  columnasAdicionales?: Record<string, string>; // Nuevas columnas detectadas en el Sheet
+}
+
 export type AlertaSeveridad = "Alta" | "Media" | "Baja";
 
 export interface AlertaItem {
@@ -82,6 +110,7 @@ export interface DashboardMetrics {
   alertasAltaCount: number;
   contratistasActivosCount: number;
   avancePromedioFisico: number;
+  totalGarantiasVigentesCount?: number;
 }
 
 export interface DetectedHeader {
@@ -103,7 +132,7 @@ export interface ExpectedFieldAudit {
 }
 
 export interface SheetAuditInfo {
-  sheetKey: "obras" | "contratistas" | "certificaciones" | "alertas";
+  sheetKey: "obras" | "contratistas" | "certificaciones" | "garantias" | "alertas";
   title: string;
   tabRange: string;
   spreadsheetId: string;
@@ -116,6 +145,7 @@ export interface SheetAuditInfo {
   mappedFieldsCount: number;
   expectedFields: ExpectedFieldAudit[];
   sampleRow?: Record<string, string>;
+  availableTabs?: string[];
 }
 
 export interface SheetsDiagnosticData {

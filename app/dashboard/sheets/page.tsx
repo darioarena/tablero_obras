@@ -191,16 +191,30 @@ export default async function SheetsDiagnosticPage() {
                     Rango: {sheet.tabRange}
                   </Badge>
                   {sheet.status === "CONNECTED" && (
-                    <Badge variant="active" className="text-[10px]">Conectada</Badge>
+                    <Badge variant="active" className="text-[10px]">Conectada (En Vivo)</Badge>
                   )}
                   {sheet.status === "FALLBACK_MOCK" && (
                     <Badge variant="media" className="text-[10px]">Mock Demo</Badge>
                   )}
+                  {sheet.status === "ERROR" && (
+                    <Badge variant="alta" className="text-[10px] bg-rose-600 text-white">Error de Conexión</Badge>
+                  )}
+                  {sheet.status === "EMPTY" && (
+                    <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">Hoja Vacía</Badge>
+                  )}
                 </div>
-                <div className="mt-1 flex items-center gap-4 text-xs text-slate-500">
+                <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
                   <span className="font-mono truncate max-w-md">ID: {sheet.spreadsheetId}</span>
                   <span>•</span>
                   <span>Registros detectados: <strong className="text-slate-800">{sheet.totalRows}</strong></span>
+                  {sheet.availableTabs && sheet.availableTabs.length > 1 && (
+                    <>
+                      <span>•</span>
+                      <span className="text-slate-500 text-[11px]">
+                        Pestañas disponibles: <span className="font-medium text-slate-700">{sheet.availableTabs.join(", ")}</span>
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -218,6 +232,16 @@ export default async function SheetsDiagnosticPage() {
             </div>
 
             <CardContent className="p-6 space-y-6">
+              {/* Mensaje de Error si la consulta a Google Sheets falló */}
+              {sheet.errorMessage && (
+                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="text-xs text-rose-900 leading-relaxed">
+                    <div className="font-bold text-rose-950">Diagnóstico de la Conexión con Google Drive:</div>
+                    <p className="mt-0.5">{sheet.errorMessage}</p>
+                  </div>
+                </div>
+              )}
               {/* Alerta de nuevas columnas detectadas si las hay */}
               {sheet.unmappedHeaders.length > 0 && (
                 <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200">
