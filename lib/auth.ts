@@ -30,12 +30,17 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Correo Electrónico", type: "email" },
         password: { label: "Contraseña", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
 
-        const user = await verifyUserCredentials(credentials.email, credentials.password);
+        const rawCookie =
+          (req?.headers as any)?.cookie ||
+          (typeof (req?.headers as any)?.get === "function" ? (req?.headers as any).get("cookie") : "") ||
+          "";
+
+        const user = await verifyUserCredentials(credentials.email, credentials.password, rawCookie);
 
         if (!user) {
           return null;

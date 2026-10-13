@@ -13,6 +13,9 @@ import {
   Filter,
   AlertCircle,
   X,
+  Trash2,
+  Info,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +29,8 @@ import {
   createUserAction,
   updateUserAction,
   resetPasswordAction,
+  deleteUserAction,
+  syncCustomUsersAction,
 } from "@/app/actions/users";
 import { useEffect } from "react";
 
@@ -67,7 +72,26 @@ const INITIAL_USERS: UserAccount[] = [
 ];
 
 export default function UsuariosPage() {
-  const [users, setUsers] = useState<UserAccount[]>(INITIAL_USERS);
+  // Inicialización perezosa: recupera instantáneamente usuarios del navegador sin parpadeo
+  const [users, setUsers] = useState<UserAccount[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const backup = localStorage.getItem("portal_custom_users_backup");
+        if (backup) {
+          const parsed = JSON.parse(backup);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const map = new Map(INITIAL_USERS.map((u) => [u.email.toLowerCase(), u]));
+            for (const p of parsed) {
+              if (p.email) map.set(p.email.toLowerCase(), p);
+            }
+            return Array.from(map.values());
+          }
+        }
+      } catch {}
+    }
+    return INITIAL_USERS;
+  });
+
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState<string>("ALL");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,11 +103,47 @@ export default function UsuariosPage() {
   const [newPassword, setNewPassword] = useState("");
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Cargar usuarios desde el backend
+  // Helper para resguardar usuarios personalizados en LocalStorage
+  const persistCustomUsers = (currentUsers: UserAccount[]) => {
+    try {
+      const defaultIds = new Set(["usr-001", "usr-002", "usr-003"]);
+      const customOnly = currentUsers.filter((u) => !defaultIds.has(u.id));
+      localStorage.setItem("portal_custom_users_backup", JSON.stringify(customOnly));
+    } catch (e) {
+      console.warn("Error guardando respaldo local:", e);
+    }
+  };
+
+  // Cargar usuarios desde el backend y sincronizar con LocalStorage
   useEffect(() => {
+    let localBackup: any[] = [];
+    try {
+      const raw = localStorage.getItem("portal_custom_users_backup");
+      if (raw) localBackup = JSON.parse(raw);
+    } catch {}
+
     fetchUsersAction().then((res) => {
-      if (res.success && res.users && res.users.length > 0) {
+      if (res.success && res.users) {
+        if (Array.isArray(localBackup) && localBackup.length > 0) {
+          const serverEmails = new Set(res.users.map((u) => u.email.toLowerCase()));
+          const missing = localBackup.filter(
+            (b) => b.email && !serverEmails.has(b.email.toLowerCase())
+          );
+          if (missing.length > 0) {
+            // Sincronizar usuarios del cliente hacia el backend (cookies y servidor)
+            syncCustomUsersAction(localBackup).then((syncRes) => {
+              if (syncRes.success && syncRes.users && syncRes.users.length > 0) {
+                setUsers(syncRes.users);
+                persistCustomUsers(syncRes.users);
+                return;
+              }
+              setUsers(res.users);
+            });
+            return;
+          }
+        }
         setUsers(res.users);
+        persistCustomUsers(res.users);
       }
     });
   }, []);
@@ -123,10 +183,12 @@ export default function UsuariosPage() {
     setIsSubmitting(false);
 
     if (res.success && res.user) {
-      setUsers([res.user, ...users]);
+      const updatedList = [res.user, ...users.filter((u) => u.id !== res.user!.id)];
+      setUsers(updatedList);
+      persistCustomUsers(updatedList);
       setIsCreateModalOpen(false);
       setFormData({ name: "", email: "", role: "OPERADOR", department: "", password: "" });
-      setNotification(`Usuario "${res.user.name}" creado con éxito.`);
+      setNotification(`Usuario "${res.user.name}" creado con éxito. Persistencia activa.`);
       setTimeout(() => setNotification(null), 4000);
     } else {
       setNotification(res.error || "Error al crear el usuario.");
@@ -141,20 +203,22 @@ export default function UsuariosPage() {
 
     const res = await updateUserAction(id, { status: newStatus });
     if (res.success) {
-      setUsers(
-        users.map((u) =>
-          u.id === id ? { ...u, status: newStatus, updatedAt: new Date().toISOString() } : u
-        )
+      const updated = users.map((u) =>
+        u.id === id ? { ...u, status: newStatus, updatedAt: new Date().toISOString() } : u
       );
+      setUsers(updated);
+      persistCustomUsers(updated);
     }
   };
 
   const handleRoleChange = async (id: string, newRole: UserRole) => {
     const res = await updateUserAction(id, { role: newRole });
     if (res.success) {
-      setUsers(
-        users.map((u) => (u.id === id ? { ...u, role: newRole, updatedAt: new Date().toISOString() } : u))
+      const updated = users.map((u) =>
+        u.id === id ? { ...u, role: newRole, updatedAt: new Date().toISOString() } : u
       );
+      setUsers(updated);
+      persistCustomUsers(updated);
     }
   };
 
@@ -165,6 +229,7 @@ export default function UsuariosPage() {
       setNotification(
         `Contraseña del usuario ${selectedUser.name} restablecida exitosamente.`
       );
+      persistCustomUsers(users);
     } else {
       setNotification(res.error || "Error al restablecer la contraseña.");
     }
@@ -172,6 +237,29 @@ export default function UsuariosPage() {
     setSelectedUser(null);
     setNewPassword("");
     setTimeout(() => setNotification(null), 4000);
+  };
+
+  const handleDeleteUser = async (user: UserAccount) => {
+    if (user.id === "usr-001") {
+      alert("No es posible eliminar el usuario administrador principal.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `¿Está seguro de eliminar el usuario "${user.name}" (${user.email})?`
+    );
+    if (!confirmed) return;
+
+    const res = await deleteUserAction(user.id);
+    if (res.success) {
+      const updated = users.filter((u) => u.id !== user.id);
+      setUsers(updated);
+      persistCustomUsers(updated);
+      setNotification(`Usuario "${user.name}" eliminado correctamente.`);
+      setTimeout(() => setNotification(null), 4000);
+    } else {
+      setNotification(res.error || "Error al eliminar el usuario.");
+      setTimeout(() => setNotification(null), 4000);
+    }
   };
 
   return (
@@ -207,6 +295,26 @@ export default function UsuariosPage() {
           <UserPlus className="w-4 h-4" />
           Nuevo Usuario
         </Button>
+      </div>
+
+      {/* Banner Informativo de Persistencia */}
+      <div className="p-3.5 bg-slate-900 text-white rounded-xl shadow-sm text-xs flex flex-col md:flex-row md:items-center justify-between gap-3 border border-slate-800">
+        <div className="flex items-start gap-2.5">
+          <div className="p-1.5 bg-amber-500/20 text-amber-400 rounded-lg shrink-0 mt-0.5">
+            <Shield className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="font-semibold text-slate-100 flex items-center gap-2">
+              Persistencia Multi-Capa Habilitada
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-medium">
+                Cookies + LocalStorage Activo
+              </span>
+            </div>
+            <p className="text-slate-300 text-[11px] mt-0.5">
+              Los usuarios creados se conservan al recargar (<kbd className="px-1 py-0.5 bg-slate-800 border border-slate-700 rounded text-[10px]">F5</kbd>), navegar por el sistema y al autenticarse en <code className="text-amber-300 font-mono">/login</code>.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Tabla y Filtros */}
@@ -322,6 +430,19 @@ export default function UsuariosPage() {
                           <KeyRound className="w-3 h-3 text-slate-500" />
                           Reset Clave
                         </Button>
+
+                        {user.id !== "usr-001" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteUser(user)}
+                            className="h-7 text-[11px] gap-1 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                            title="Eliminar usuario"
+                          >
+                            <Trash2 className="w-3 h-3 text-rose-500" />
+                            Eliminar
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
