@@ -14,6 +14,10 @@ import {
   ExpectedFieldAudit,
 } from "@/types/sheets";
 
+if (typeof window !== "undefined") {
+  throw new Error("[Security] lib/google-sheets solo puede ejecutarse en el entorno de servidor (Node.js/Server Components).");
+}
+
 // ============================================================================
 // CONFIGURACIÓN Y CONSTANTES
 // ============================================================================
@@ -50,19 +54,26 @@ export function getSheetsConfig(): SheetConfig {
 }
 
 /**
- * Valida y formatea la Private Key de la Service Account
+ * Valida y formatea la Private Key de la Service Account de Google.
+ * Remueve comillas envolventes accidentales y normaliza saltos de línea \n.
  */
 function cleanPrivateKey(key?: string): string | undefined {
   if (!key) return undefined;
-  // Reemplaza posibles secuencias literales de escape \n por saltos de línea reales
-  return key.replace(/\\n/g, "\n");
+  let cleaned = key.trim();
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    cleaned = cleaned.substring(1, cleaned.length - 1);
+  }
+  return cleaned.replace(/\\n/g, "\n");
 }
 
 /**
  * Inicializa el cliente autenticado de Google Sheets API v4
  */
 function getGoogleSheetsClient() {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim();
   const rawKey = process.env.GOOGLE_PRIVATE_KEY;
   const privateKey = cleanPrivateKey(rawKey);
 
@@ -70,13 +81,18 @@ function getGoogleSheetsClient() {
     return null;
   }
 
-  const auth = new google.auth.JWT({
-    email,
-    key: privateKey,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-  });
+  try {
+    const auth = new google.auth.JWT({
+      email,
+      key: privateKey,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    });
 
-  return google.sheets({ version: "v4", auth });
+    return google.sheets({ version: "v4", auth });
+  } catch (err) {
+    console.error("[GoogleSheets] Error inicializando cliente JWT de Google:", (err as any)?.message || err);
+    return null;
+  }
 }
 
 // ============================================================================

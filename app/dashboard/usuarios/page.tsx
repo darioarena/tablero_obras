@@ -16,6 +16,7 @@ import {
   Trash2,
   Info,
   Sparkles,
+  Database,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,7 @@ export default function UsuariosPage() {
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [notification, setNotification] = useState<string | null>(null);
+  const [isSupabaseActive, setIsSupabaseActive] = useState(false);
 
   // Helper para resguardar usuarios personalizados en LocalStorage
   const persistCustomUsers = (currentUsers: UserAccount[]) => {
@@ -124,7 +126,8 @@ export default function UsuariosPage() {
 
     fetchUsersAction().then((res) => {
       if (res.success && res.users) {
-        if (Array.isArray(localBackup) && localBackup.length > 0) {
+        setIsSupabaseActive(Boolean(res.supabaseConfigured));
+        if (Array.isArray(localBackup) && localBackup.length > 0 && !res.supabaseConfigured) {
           const serverEmails = new Set(res.users.map((u) => u.email.toLowerCase()));
           const missing = localBackup.filter(
             (b) => b.email && !serverEmails.has(b.email.toLowerCase())
@@ -297,21 +300,37 @@ export default function UsuariosPage() {
         </Button>
       </div>
 
-      {/* Banner Informativo de Persistencia */}
+      {/* Banner Informativo de Base de Datos y Persistencia */}
       <div className="p-3.5 bg-slate-900 text-white rounded-xl shadow-sm text-xs flex flex-col md:flex-row md:items-center justify-between gap-3 border border-slate-800">
         <div className="flex items-start gap-2.5">
-          <div className="p-1.5 bg-amber-500/20 text-amber-400 rounded-lg shrink-0 mt-0.5">
-            <Shield className="w-4 h-4" />
+          <div
+            className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${
+              isSupabaseActive
+                ? "bg-emerald-500/20 text-emerald-400"
+                : "bg-amber-500/20 text-amber-400"
+            }`}
+          >
+            <Database className="w-4 h-4" />
           </div>
           <div>
             <div className="font-semibold text-slate-100 flex items-center gap-2">
-              Persistencia Multi-Capa Habilitada
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-medium">
-                Cookies + LocalStorage Activo
+              {isSupabaseActive
+                ? "Base de Datos Supabase / PostgreSQL Conectada"
+                : "Modo Demostración / Contingencia"}
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                  isSupabaseActive
+                    ? "bg-emerald-500/20 text-emerald-300"
+                    : "bg-amber-500/20 text-amber-300"
+                }`}
+              >
+                {isSupabaseActive ? "Producción Activa (Bcrypt)" : "Sin Conexión DB"}
               </span>
             </div>
             <p className="text-slate-300 text-[11px] mt-0.5">
-              Los usuarios creados se conservan al recargar (<kbd className="px-1 py-0.5 bg-slate-800 border border-slate-700 rounded text-[10px]">F5</kbd>), navegar por el sistema y al autenticarse en <code className="text-amber-300 font-mono">/login</code>.
+              {isSupabaseActive
+                ? "Todos los usuarios, roles y contraseñas se almacenan de forma segura con cifrado bcrypt en tu base de datos Supabase con RLS habilitado."
+                : "Para conectar la base de datos de producción permanente, configurá SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en el panel de Vercel."}
             </p>
           </div>
         </div>

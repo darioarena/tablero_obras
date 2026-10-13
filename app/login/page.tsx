@@ -226,28 +226,30 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Acceso Rápido Demo (Testing Inicial de Roles) */}
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
-              Accesos Demo (Fase 1)
-            </span>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setDemoCredentials("ADMIN")}
-                className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200/60"
-              >
-                Cargar Rol Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoCredentials("OPERADOR")}
-                className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200/60"
-              >
-                Cargar Rol Operador
-              </button>
+          {/* Acceso Rápido Demo (Solo activo si NEXT_PUBLIC_ENABLE_DEMO_LOGIN === "true") */}
+          {process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN === "true" && (
+            <div className="mt-8 pt-6 border-t border-slate-100">
+              <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
+                Accesos de Prueba (Modo Demo)
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDemoCredentials("ADMIN")}
+                  className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200/60"
+                >
+                  Cargar Rol Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDemoCredentials("OPERADOR")}
+                  className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200/60"
+                >
+                  Cargar Rol Operador
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer Institucional del Formulario */}

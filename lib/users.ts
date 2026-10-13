@@ -1,21 +1,31 @@
 import fs from "fs";
 import path from "path";
+import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { UserAccount, UserRole, UserStatus, CreateUserInput, UpdateUserInput } from "@/types/user";
+import { getSupabaseAdminClient, isSupabaseConfigured } from "@/lib/supabase";
+
+if (typeof window !== "undefined") {
+  throw new Error("[Security] lib/users solo puede ejecutarse en el servidor.");
+}
 
 export interface StoredUser extends UserAccount {
   passwordHash: string;
 }
 
 /**
- * Usuarios base predeterminados del sistema (Demo institucional).
+ * Hashes pre-calculados con bcrypt (cost 10) para usuarios de contingencia / demo inicial.
+ * NUNCA se almacenan contraseñas en texto plano.
+ * - Admin1234!    -> $2b$10$iLPutEjROT0ubuGttLIvvevB1SlY4lcJ6DJ5zBSwAlATbiftbbgKe
+ * - Operador1234! -> $2b$10$UxCo0P7BP3gFeLmuH53UKeliVoUKx2uYEBCm.0/bp8ioZqiRTTYpq
+ * - Temporal2024! -> $2b$10$wcu1TI3Sin/RuhF.WOjIE.m/r9K.ky3E2QVNvD01NoIt7ZIq11B.W
  */
 export const DEFAULT_USERS: StoredUser[] = [
   {
     id: "usr-001",
     name: "Arq. Valeria Domínguez",
     email: "admin@portaldeobras.gob.ar",
-    passwordHash: "Admin1234!",
+    passwordHash: "$2b$10$iLPutEjROT0ubuGttLIvvevB1SlY4lcJ6DJ5zBSwAlATbiftbbgKe",
     role: "ADMIN",
     status: "active",
     department: "Dirección General de Obras Públicas",
@@ -27,7 +37,7 @@ export const DEFAULT_USERS: StoredUser[] = [
     id: "usr-002",
     name: "Ing. Martín Morales",
     email: "operador@portaldeobras.gob.ar",
-    passwordHash: "Operador1234!",
+    passwordHash: "$2b$10$UxCo0P7BP3gFeLmuH53UKeliVoUKx2uYEBCm.0/bp8ioZqiRTTYpq",
     role: "OPERADOR",
     status: "active",
     department: "Supervisión de Inspecciones e Informática",
@@ -39,7 +49,7 @@ export const DEFAULT_USERS: StoredUser[] = [
     id: "usr-003",
     name: "Lic. Luciana Gómez",
     email: "luciana.gomez@portaldeobras.gob.ar",
-    passwordHash: "Temporal2024!",
+    passwordHash: "$2b$10$wcu1TI3Sin/RuhF.WOjIE.m/r9K.ky3E2QVNvD01NoIt7ZIq11B.W",
     role: "OPERADOR",
     status: "inactive",
     department: "Auditoría Contable y Certificaciones",
@@ -53,15 +63,93 @@ const LOCAL_DATA_DIR = path.join(process.cwd(), "data");
 const LOCAL_USERS_FILE = path.join(LOCAL_DATA_DIR, "users.json");
 const TMP_USERS_FILE = path.join("/tmp", "portal_custom_users.json");
 
-/**
- * Cache en memoria por proceso/contenedor.
- */
 let USERS_STORE: StoredUser[] = [...DEFAULT_USERS];
+let isSeededInSupabase = false;
+
+// ============================================================================
+// FUNCIONES CRIPTOGRÁFICAS (BCRYPT)
+// ============================================================================
+
+export async function hashPassword(plainPassword: string): Promise<string> {
+  return bcrypt.hash(plainPassword.trim(), 10);
+}
+
+export async function comparePassword(plainPassword: string, hash: string): Promise<boolean> {
+  if (!plainPassword || !hash) return false;
+  if (hash.startsWith("$2a$") || hash.startsWith("$2b$") || hash.startsWith("$2y$")) {
+    return bcrypt.compare(plainPassword.trim(), hash);
+  }
+  // Fallback temporal si existía un registro previo sin hashear durante la migración
+  return plainPassword.trim() === hash.trim();
+}
+
+// ============================================================================
+// SUPABASE / POSTGRESQL INTEGRATION
+// ============================================================================
 
 /**
- * Lee el valor de una cookie de forma segura tanto en Server Actions / Route Handlers
- * como a partir de un header 'Cookie' sin lanzar excepción.
+ * Asegura que el usuario administrador inicial exista en Supabase a partir
+ * de las variables de entorno ADMIN_EMAIL y ADMIN_PASSWORD.
  */
+export async function ensureAdminUserInSupabase(): Promise<void> {
+  if (isSeededInSupabase || !isSupabaseConfigured()) return;
+
+  const supabase = getSupabaseAdminClient();
+  if (!supabase) return;
+
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const adminPassword = process.env.ADMIN_PASSWORD?.trim();
+  const adminName = process.env.ADMIN_NAME?.trim() || "Administrador del Sistema";
+
+  if (!adminEmail || !adminPassword) {
+    isSeededInSupabase = true;
+    return;
+  }
+
+  try {
+    const { data: existing } = await supabase
+      .from("users")
+      .select("id, email, password_hash")
+      .ilike("email", adminEmail)
+      .maybeSingle();
+
+    if (!existing) {
+      const hashed = await hashPassword(adminPassword);
+      await supabase.from("users").insert([
+        {
+          name: adminName,
+          email: adminEmail,
+          password_hash: hashed,
+          role: "ADMIN",
+          status: "active",
+          department: "Dirección General de Obras",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ]);
+      console.log(`[Supabase] Usuario administrador creado automáticamente: ${adminEmail}`);
+    } else {
+      // Si la contraseña en env cambió, actualizar su hash
+      const matches = await comparePassword(adminPassword, existing.password_hash);
+      if (!matches) {
+        const newHash = await hashPassword(adminPassword);
+        await supabase
+          .from("users")
+          .update({ password_hash: newHash, role: "ADMIN", status: "active", updated_at: new Date().toISOString() })
+          .eq("id", existing.id);
+        console.log(`[Supabase] Hash de contraseña actualizado para: ${adminEmail}`);
+      }
+    }
+    isSeededInSupabase = true;
+  } catch (err) {
+    console.warn("[Supabase] Error en ensureAdminUserInSupabase:", (err as any)?.message || err);
+  }
+}
+
+// ============================================================================
+// PERSISTENCIA DE CONTINGENCIA / LOCAL (Archivos y Cookies)
+// ============================================================================
+
 export function getCookieValueSafely(cookieName: string, rawCookieHeader?: string): string | null {
   if (rawCookieHeader) {
     const match = rawCookieHeader.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`));
@@ -74,16 +162,11 @@ export function getCookieValueSafely(cookieName: string, rawCookieHeader?: strin
     const cookieStore = cookies();
     const c = cookieStore.get(cookieName);
     if (c?.value) return c.value;
-  } catch {
-    // Fuera de contexto de request (build time o script)
-  }
+  } catch {}
 
   return null;
 }
 
-/**
- * Serializa la lista de usuarios personalizados para la cookie.
- */
 export function serializeCustomUsers(users: StoredUser[]): string {
   const compact = users.map((u) => ({
     id: u.id,
@@ -101,38 +184,24 @@ export function serializeCustomUsers(users: StoredUser[]): string {
   return Buffer.from(json, "utf-8").toString("base64");
 }
 
-/**
- * Deserializa la lista de usuarios personalizados desde la cookie.
- */
 export function deserializeCustomUsers(cookieValue: string): StoredUser[] {
   if (!cookieValue) return [];
 
-  // Intento 1: Base64
   try {
     const decoded = Buffer.from(cookieValue, "base64").toString("utf-8");
     const parsed = JSON.parse(decoded);
     if (Array.isArray(parsed)) return parsed;
   } catch {}
 
-  // Intento 2: URI Component
   try {
     const decoded = decodeURIComponent(cookieValue);
     const parsed = JSON.parse(decoded);
     if (Array.isArray(parsed)) return parsed;
   } catch {}
 
-  // Intento 3: JSON directo
-  try {
-    const parsed = JSON.parse(cookieValue);
-    if (Array.isArray(parsed)) return parsed;
-  } catch {}
-
   return [];
 }
 
-/**
- * Lee usuarios guardados en disco (data/users.json o /tmp/portal_custom_users.json).
- */
 export function readUsersFromFile(): StoredUser[] {
   try {
     if (fs.existsSync(LOCAL_USERS_FILE)) {
@@ -153,9 +222,6 @@ export function readUsersFromFile(): StoredUser[] {
   return [];
 }
 
-/**
- * Escribe usuarios personalizados en disco con tolerancia a entornos read-only como Vercel.
- */
 export function writeUsersToFile(users: StoredUser[]) {
   const json = JSON.stringify(users, null, 2);
   let written = false;
@@ -175,12 +241,8 @@ export function writeUsersToFile(users: StoredUser[]) {
   }
 }
 
-/**
- * Obtiene usuarios definidos en variables de entorno (ADMIN_EMAIL, CUSTOM_USERS_JSON).
- */
 function getEnvUsers(): StoredUser[] {
   const result: StoredUser[] = [];
-
   const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const adminPassword = process.env.ADMIN_PASSWORD?.trim();
   const adminName = process.env.ADMIN_NAME?.trim() || "Administrador del Sistema";
@@ -190,7 +252,8 @@ function getEnvUsers(): StoredUser[] {
       id: "usr-admin-env",
       name: adminName,
       email: adminEmail,
-      passwordHash: adminPassword,
+      // Se hashea en tiempo de ejecución si se usa el fallback
+      passwordHash: bcrypt.hashSync(adminPassword, 10),
       role: "ADMIN",
       status: "active",
       department: "Dirección General de Obras",
@@ -199,43 +262,9 @@ function getEnvUsers(): StoredUser[] {
     });
   }
 
-  const customUsersJson = process.env.CUSTOM_USERS_JSON;
-  if (customUsersJson) {
-    try {
-      const parsed = JSON.parse(customUsersJson);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((item, idx) => {
-          if (item.email && item.password) {
-            result.push({
-              id: `usr-env-${idx + 1}`,
-              name: item.name || "Usuario del Sistema",
-              email: item.email.trim().toLowerCase(),
-              passwordHash: String(item.password).trim(),
-              role: item.role === "ADMIN" ? "ADMIN" : "OPERADOR",
-              status: "active",
-              department: item.department || "Infraestructura",
-              createdAt: "2024-01-01T00:00:00Z",
-              updatedAt: new Date().toISOString(),
-            });
-          }
-        });
-      }
-    } catch (e) {
-      console.warn("[Users] Error al parsear CUSTOM_USERS_JSON:", e);
-    }
-  }
-
   return result;
 }
 
-/**
- * Combina todas las fuentes disponibles:
- * 1. Base DEFAULT_USERS
- * 2. Variables de entorno (ADMIN_EMAIL, CUSTOM_USERS_JSON)
- * 3. Archivo local /tmp/portal_custom_users.json o data/users.json
- * 4. Cache en memoria del proceso
- * 5. Cookie HTTP (portal_custom_users)
- */
 export function getMergedUsers(rawCookieHeader?: string): StoredUser[] {
   const userMap = new Map<string, StoredUser>();
 
@@ -250,27 +279,22 @@ export function getMergedUsers(rawCookieHeader?: string): StoredUser[] {
     }
   };
 
-  // 1. Usuarios demo base
   for (const u of DEFAULT_USERS) {
     putUser(u);
   }
 
-  // 2. Variables de entorno
   for (const u of getEnvUsers()) {
     putUser(u);
   }
 
-  // 3. Archivo en disco
   for (const u of readUsersFromFile()) {
     putUser(u);
   }
 
-  // 4. Cache en memoria
   for (const u of USERS_STORE) {
     putUser(u);
   }
 
-  // 5. Cookie del cliente
   const cookieVal = getCookieValueSafely("portal_custom_users", rawCookieHeader);
   if (cookieVal) {
     const cookieUsers = deserializeCustomUsers(cookieVal);
@@ -284,10 +308,6 @@ export function getMergedUsers(rawCookieHeader?: string): StoredUser[] {
   return merged;
 }
 
-/**
- * Obtiene la lista de usuarios que no son idénticos a los predeterminados
- * (cuentas nuevas o modificadas) para almacenar en la cookie y archivo.
- */
 export function getCustomUsersList(rawCookieHeader?: string): StoredUser[] {
   const all = getMergedUsers(rawCookieHeader);
   const defaultEmails = new Set(DEFAULT_USERS.map((u) => u.email.trim().toLowerCase()));
@@ -309,10 +329,48 @@ export function getCustomUsersList(rawCookieHeader?: string): StoredUser[] {
   });
 }
 
+// ============================================================================
+// SERVICIOS PÚBLICOS DE USUARIOS (SUPABASE PRIORITY CON FALLBACK SEGURO)
+// ============================================================================
+
 export async function findUserByEmail(email: string, rawCookieHeader?: string): Promise<StoredUser | null> {
   if (!email) return null;
-  const all = getMergedUsers(rawCookieHeader);
   const normalized = email.trim().toLowerCase();
+
+  // 1. Intentar consultar Supabase / PostgreSQL
+  if (isSupabaseConfigured()) {
+    await ensureAdminUserInSupabase();
+    const supabase = getSupabaseAdminClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("users")
+          .select("id, name, email, password_hash, role, status, department, created_at, updated_at, last_login")
+          .ilike("email", normalized)
+          .maybeSingle();
+
+        if (data && !error) {
+          return {
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            passwordHash: data.password_hash,
+            role: data.role as UserRole,
+            status: data.status as UserStatus,
+            department: data.department || "Infraestructura",
+            createdAt: data.created_at,
+            updatedAt: data.updated_at,
+            lastLogin: data.last_login,
+          };
+        }
+      } catch (err) {
+        console.warn("[Supabase] Falló consulta findUserByEmail, usando fallback:", (err as any)?.message || err);
+      }
+    }
+  }
+
+  // 2. Fallback de contingencia (memoria/cookie)
+  const all = getMergedUsers(rawCookieHeader);
   return all.find((u) => u.email.trim().toLowerCase() === normalized) || null;
 }
 
@@ -323,37 +381,116 @@ export async function verifyUserCredentials(email: string, passwordPlain: string
   if (!user) return null;
   if (user.status !== "active") return null;
 
-  const inputPass = passwordPlain.trim();
-  const storedPass = user.passwordHash.trim();
+  const isPasswordValid = await comparePassword(passwordPlain, user.passwordHash);
+  if (!isPasswordValid) return null;
 
-  // Validación de credenciales: texto exacto o recortado
-  if (inputPass === storedPass || passwordPlain === user.passwordHash) {
-    const { passwordHash: _, ...safeUser } = user;
-    return safeUser;
+  // Registrar último inicio de sesión en Supabase
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseAdminClient();
+    if (supabase) {
+      try {
+        await supabase
+          .from("users")
+          .update({ last_login: new Date().toISOString() })
+          .eq("id", user.id);
+      } catch {}
+    }
   }
 
-  return null;
+  const { passwordHash: _, ...safeUser } = user;
+  return safeUser;
 }
 
 export async function getAllUsers(rawCookieHeader?: string): Promise<UserAccount[]> {
+  // 1. Si Supabase está configurado, es la fuente de verdad única
+  if (isSupabaseConfigured()) {
+    await ensureAdminUserInSupabase();
+    const supabase = getSupabaseAdminClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("users")
+          .select("id, name, email, role, status, department, created_at, updated_at, last_login")
+          .order("created_at", { ascending: false });
+
+        if (!error && Array.isArray(data)) {
+          return data.map((u) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role as UserRole,
+            status: u.status as UserStatus,
+            department: u.department || "Infraestructura",
+            createdAt: u.created_at,
+            updatedAt: u.updated_at,
+            lastLogin: u.last_login,
+          }));
+        }
+      } catch (err) {
+        console.warn("[Supabase] Error en getAllUsers, usando fallback:", (err as any)?.message || err);
+      }
+    }
+  }
+
+  // 2. Fallback de contingencia
   const all = getMergedUsers(rawCookieHeader);
   return all.map(({ passwordHash: _, ...safeUser }) => safeUser);
 }
 
 export async function createUser(input: CreateUserInput, rawCookieHeader?: string): Promise<UserAccount> {
-  const allUsers = getMergedUsers(rawCookieHeader);
   const normalizedEmail = input.email.trim().toLowerCase();
-
-  const existing = allUsers.find((u) => u.email.trim().toLowerCase() === normalizedEmail);
+  const existing = await findUserByEmail(normalizedEmail, rawCookieHeader);
   if (existing) {
     throw new Error("Ya existe un usuario con el correo electrónico especificado.");
   }
 
+  const passwordHash = await hashPassword(input.password || "ClaveTemporal2024!");
+
+  // 1. Guardar en Supabase si está disponible
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseAdminClient();
+    if (supabase) {
+      const { data, error } = await supabase
+        .from("users")
+        .insert([
+          {
+            name: input.name.trim(),
+            email: normalizedEmail,
+            password_hash: passwordHash,
+            role: input.role,
+            status: "active",
+            department: input.department?.trim() || "Infraestructura",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ])
+        .select("id, name, email, role, status, department, created_at, updated_at, last_login")
+        .single();
+
+      if (error || !data) {
+        throw new Error(`Error en Supabase al crear usuario: ${error?.message || "Operación fallida"}`);
+      }
+
+      return {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        role: data.role as UserRole,
+        status: data.status as UserStatus,
+        department: data.department || "Infraestructura",
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+        lastLogin: data.last_login,
+      };
+    }
+  }
+
+  // 2. Fallback en memoria / archivo / cookie
   const newUser: StoredUser = {
     id: `usr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
     name: input.name.trim(),
     email: normalizedEmail,
-    passwordHash: input.password?.trim() || "ClaveTemporal2024!",
+    passwordHash,
     role: input.role,
     status: "active",
     department: input.department?.trim() || "Infraestructura",
@@ -370,6 +507,47 @@ export async function createUser(input: CreateUserInput, rawCookieHeader?: strin
 }
 
 export async function updateUser(id: string, input: UpdateUserInput, rawCookieHeader?: string): Promise<UserAccount> {
+  // 1. Actualizar en Supabase si está activo
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseAdminClient();
+    if (supabase) {
+      const updatePayload: any = {
+        updated_at: new Date().toISOString(),
+      };
+      if (input.name !== undefined) updatePayload.name = input.name.trim();
+      if (input.role !== undefined) updatePayload.role = input.role;
+      if (input.status !== undefined) updatePayload.status = input.status;
+      if (input.department !== undefined) updatePayload.department = input.department.trim();
+      if (input.newPassword) {
+        updatePayload.password_hash = await hashPassword(input.newPassword);
+      }
+
+      const { data, error } = await supabase
+        .from("users")
+        .update(updatePayload)
+        .eq("id", id)
+        .select("id, name, email, role, status, department, created_at, updated_at, last_login")
+        .single();
+
+      if (error || !data) {
+        throw new Error(`Error en Supabase al actualizar usuario: ${error?.message || "Usuario no encontrado"}`);
+      }
+
+      return {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        role: data.role as UserRole,
+        status: data.status as UserStatus,
+        department: data.department || "Infraestructura",
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+        lastLogin: data.last_login,
+      };
+    }
+  }
+
+  // 2. Fallback
   const allUsers = getMergedUsers(rawCookieHeader);
   const index = allUsers.findIndex((u) => u.id === id);
   if (index === -1) {
@@ -383,7 +561,7 @@ export async function updateUser(id: string, input: UpdateUserInput, rawCookieHe
     role: input.role ?? current.role,
     status: input.status ?? current.status,
     department: input.department?.trim() ?? current.department,
-    passwordHash: input.newPassword?.trim() ? input.newPassword.trim() : current.passwordHash,
+    passwordHash: input.newPassword?.trim() ? await hashPassword(input.newPassword) : current.passwordHash,
     updatedAt: new Date().toISOString(),
   };
 
@@ -397,11 +575,27 @@ export async function updateUser(id: string, input: UpdateUserInput, rawCookieHe
 }
 
 export async function resetUserPassword(id: string, newPasswordPlain: string, rawCookieHeader?: string): Promise<boolean> {
+  const newHash = await hashPassword(newPasswordPlain);
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseAdminClient();
+    if (supabase) {
+      const { error } = await supabase
+        .from("users")
+        .update({ password_hash: newHash, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) {
+        throw new Error(`Error al restablecer contraseña en Supabase: ${error.message}`);
+      }
+      return true;
+    }
+  }
+
   const allUsers = getMergedUsers(rawCookieHeader);
   const user = allUsers.find((u) => u.id === id);
   if (!user) return false;
 
-  user.passwordHash = newPasswordPlain.trim();
+  user.passwordHash = newHash;
   user.updatedAt = new Date().toISOString();
   USERS_STORE = allUsers;
   const customList = getCustomUsersList();
@@ -410,13 +604,24 @@ export async function resetUserPassword(id: string, newPasswordPlain: string, ra
 }
 
 export async function deleteUser(id: string, rawCookieHeader?: string): Promise<boolean> {
+  if (id === "usr-001") {
+    throw new Error("No es posible eliminar el usuario administrador principal del sistema.");
+  }
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseAdminClient();
+    if (supabase) {
+      const { error } = await supabase.from("users").delete().eq("id", id);
+      if (error) {
+        throw new Error(`Error al eliminar usuario en Supabase: ${error.message}`);
+      }
+      return true;
+    }
+  }
+
   const allUsers = getMergedUsers(rawCookieHeader);
   const index = allUsers.findIndex((u) => u.id === id);
   if (index === -1) return false;
-
-  if (allUsers[index].id === "usr-001") {
-    throw new Error("No es posible eliminar el usuario administrador principal del sistema.");
-  }
 
   allUsers.splice(index, 1);
   USERS_STORE = allUsers;
@@ -438,10 +643,14 @@ export async function syncCustomUsers(incomingUsers: StoredUser[]): Promise<Stor
     if (idx >= 0) {
       current[idx] = { ...current[idx], ...inc };
     } else {
+      const hash = inc.passwordHash && (inc.passwordHash.startsWith("$2a$") || inc.passwordHash.startsWith("$2b$"))
+        ? inc.passwordHash
+        : await hashPassword(inc.passwordHash || "ClaveTemporal2024!");
+
       current.push({
         ...inc,
         id: inc.id || `usr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        passwordHash: inc.passwordHash || "ClaveTemporal2024!",
+        passwordHash: hash,
         status: inc.status || "active",
         createdAt: inc.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),

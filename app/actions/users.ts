@@ -12,9 +12,19 @@ import {
   syncCustomUsers,
   StoredUser,
 } from "@/lib/users";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { CreateUserInput, UpdateUserInput, UserAccount } from "@/types/user";
 
 function saveCustomUsersToCookie(customUsers: StoredUser[]) {
+  // Si Supabase / PostgreSQL está activo, la base de datos es la única fuente de verdad
+  if (isSupabaseConfigured()) {
+    try {
+      const cookieStore = cookies();
+      cookieStore.delete("portal_custom_users");
+    } catch {}
+    return;
+  }
+
   try {
     const serialized = serializeCustomUsers(customUsers);
     const cookieStore = cookies();
@@ -22,7 +32,7 @@ function saveCustomUsersToCookie(customUsers: StoredUser[]) {
       path: "/",
       maxAge: 365 * 24 * 60 * 60, // 1 año
       sameSite: "lax",
-      httpOnly: false, // Accesible por JS para sincronización con LocalStorage
+      httpOnly: false, // Accesible por JS para sincronización con LocalStorage en fallback
       secure: process.env.NODE_ENV === "production",
     });
   } catch (err) {
@@ -33,13 +43,19 @@ function saveCustomUsersToCookie(customUsers: StoredUser[]) {
 export async function fetchUsersAction(): Promise<{
   success: boolean;
   users: UserAccount[];
+  supabaseConfigured: boolean;
   error?: string;
 }> {
   try {
     const users = await getAllUsers();
-    return { success: true, users };
+    return { success: true, users, supabaseConfigured: isSupabaseConfigured() };
   } catch (err: any) {
-    return { success: false, users: [], error: err?.message || "Error al obtener usuarios." };
+    return {
+      success: false,
+      users: [],
+      supabaseConfigured: isSupabaseConfigured(),
+      error: err?.message || "Error al obtener usuarios.",
+    };
   }
 }
 

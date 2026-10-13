@@ -10,6 +10,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "googleapis": "^144.0.0",
     "lucide-react": "^0.460.0",
@@ -20,6 +22,7 @@
     "tailwind-merge": "^2.5.5"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.17.6",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
