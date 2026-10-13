@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { signOut } from "next-auth/react";
 import {
+  Building2,
   Calendar,
   LogOut,
   User,
@@ -42,31 +44,50 @@ export function Navbar({
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur px-6 shadow-subtle">
-      {/* Buscador / Filtro Rápido */}
-      <div className="flex items-center gap-3 w-1/3">
-        <div className="relative w-full max-w-xs">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar por código u obra..."
-            className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:bg-white focus:outline-none transition-colors"
-          />
-        </div>
+    <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-4 sm:px-6 lg:px-8 shadow-subtle">
+      {/* Branding Institucional + Buscador / Filtro */}
+      <div className="flex items-center gap-3 sm:gap-5">
+        <Link href="/dashboard" className="flex items-center gap-2.5 shrink-0 group">
+          <div className="h-9 w-9 rounded-xl bg-slate-900 flex items-center justify-center text-white shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+            <Building2 className="w-5 h-5 text-blue-400" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-extrabold text-sm tracking-tight text-slate-900 leading-tight">
+              PORTAL DE OBRAS
+            </span>
+            <span className="text-[10px] text-slate-500 font-semibold tracking-wide uppercase hidden sm:block">
+              Tablero de Gestión
+            </span>
+          </div>
+        </Link>
 
-        {/* Selector de Período Global */}
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-700">
-          <Calendar className="w-3.5 h-3.5 text-slate-500" />
-          <select
-            value={selectedFilter}
-            onChange={(e) => setSelectedFilter(e.target.value)}
-            className="bg-transparent text-xs font-medium text-slate-800 focus:outline-none cursor-pointer"
-          >
-            <option value="2024-anual">Ejercicio 2024 (Consolidado)</option>
-            <option value="2024-q3">Tercer Trimestre 2024</option>
-            <option value="2024-mes">Mes en Curso (Octubre)</option>
-            <option value="historico">Histórico Total</option>
-          </select>
+        <div className="hidden lg:block h-6 w-px bg-slate-200" />
+
+        {/* Buscador / Filtro Rápido */}
+        <div className="hidden sm:flex items-center gap-2.5">
+          <div className="relative w-44 md:w-60 lg:w-72">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar obra, contratista..."
+              className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:bg-white focus:outline-none transition-colors"
+            />
+          </div>
+
+          {/* Selector de Período Global */}
+          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-700">
+            <Calendar className="w-3.5 h-3.5 text-slate-500" />
+            <select
+              value={selectedFilter}
+              onChange={(e) => setSelectedFilter(e.target.value)}
+              className="bg-transparent text-xs font-medium text-slate-800 focus:outline-none cursor-pointer"
+            >
+              <option value="2024-anual">Ejercicio 2024 (Consolidado)</option>
+              <option value="2024-q3">Tercer Trimestre 2024</option>
+              <option value="2024-mes">Mes en Curso (Octubre)</option>
+              <option value="historico">Histórico Total</option>
+            </select>
+          </div>
         </div>
       </div>
 
